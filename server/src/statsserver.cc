@@ -1,6 +1,5 @@
 #include "statsserver.h"
 
-
 using grpc::Server;
 using grpc::ServerAsyncResponseWriter;
 using grpc::ServerBuilder;
@@ -10,6 +9,7 @@ using grpc::Status;
 using messages::RuntimeStats;
 using messages::StatsRequest;
 using messages::StatsResponse;
+using std::string;
 
 StatsServer::~StatsServer()
 {
@@ -17,9 +17,9 @@ StatsServer::~StatsServer()
     cq_->Shutdown();
 }
 
-void StatsServer::Run()
+void StatsServer::Run(string server_address)
 {
-    std::string server_address("0.0.0.0:50051");
+    this->server_address = server_address;
 
     ServerBuilder builder;
     // Listen on the given address without any authentication mechanism.
@@ -47,27 +47,31 @@ StatsServer::CallData::CallData(RuntimeStats::AsyncService *service, ServerCompl
 
 void StatsServer::CallData::Proceed()
 {
+    std::cout << "CallData " << this << " Proceed: ";
     if (status_ == CREATE)
     {
+        std::cout << "CREATE";
+    
         // Make this instance progress to the PROCESS state.
         status_ = PROCESS;
-
-        //TODO
-
         service_->RequestGetStats(&ctx_, &request_, &responder_, cq_, cq_, this);
     }
     else if (status_ == PROCESS)
     {
-     new CallData(service_, cq_);
+        std::cout << "PROCESS";
+    
+        new CallData(service_, cq_);
 
-        //TODO
-        //reply_.set_message(prefix + request_.name());
+        response_.set_timestamp(static_cast<long>(std::time(nullptr)));
+        response_.set_time_online(std::rand());
+        response_.set_mem_usage(std::rand());
 
         status_ = FINISH;
-        responder_.Finish(reply_, Status::OK, this);
+        responder_.Finish(response_, Status::OK, this);
     }
     else
     {
+        std::cout << "FINISH"; 
         GPR_ASSERT(status_ == FINISH);
         delete this;
     }
@@ -82,6 +86,7 @@ void StatsServer::HandleRpcs()
     bool ok;
     while (true)
     {
+        std::cout << " Mainloop iteration" << std::endl;
         GPR_ASSERT(cq_->Next(&tag, &ok));
         GPR_ASSERT(ok);
         static_cast<CallData *>(tag)->Proceed();

@@ -11,3 +11,6 @@ add_subdirectory(protos)
 
 add_executable(mon_service mon_service.cc)
 target_link_libraries(mon_service LINK_PUBLIC stats_server_proto client)
+
+add_executable(microservice microservice.cc)
+target_link_libraries(microservice LINK_PUBLIC stats_server_proto server)

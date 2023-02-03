@@ -25,7 +25,7 @@ using messages::StatsResponse;
 class StatsServer {
  public:
   ~StatsServer();
-  void Run();
+  void Run(std::string server_address = "0.0.0.0:50051");
 
  private:
   class CallData {
@@ -39,7 +39,7 @@ class StatsServer {
     ServerContext ctx_;
 
     StatsRequest request_;
-    StatsResponse reply_;
+    StatsResponse response_;
     ServerAsyncResponseWriter<StatsResponse> responder_;
     enum CallStatus { CREATE, PROCESS, FINISH };
     CallStatus status_;  
@@ -51,6 +51,7 @@ class StatsServer {
   std::unique_ptr<ServerCompletionQueue> cq_;
   RuntimeStats::AsyncService service_;
   std::unique_ptr<Server> server_;
+  std::string server_address;
 
 };
 
