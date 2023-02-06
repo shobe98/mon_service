@@ -11,6 +11,9 @@ using grpc::CompletionQueue;
 using grpc::ClientContext;
 using grpc::Status;
 using grpc::ClientAsyncReader;
+using std::cout;
+using std::endl;
+using std::string;
 
 StatsClient::StatsClient(std::shared_ptr<grpc::Channel> channel) : stub_(RuntimeStats::NewStub(channel)) {}
 
