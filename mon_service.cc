@@ -13,7 +13,7 @@ int main() {
 
     stats.GetStats();
 
-    sleep(5000);
+    sleep(500);
     std::cout << "Done!";
     return 0;
 }
