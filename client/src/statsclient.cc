@@ -40,7 +40,8 @@ void StatsClient::AsyncCompleteRpc() {
         GPR_ASSERT(ok); // TODO add error handling
 
         if(call->status.ok()) {
-            std::cout << "Received response for " << call->request.timestamp() <<  " issued at " << call->response.timestamp() << std::endl;
+            std::cout << "Received response for " << call->request.timestamp() <<  " issued at "
+             << call->response.timestamp() << "\t delta: " << call->response.timestamp() - call->request.timestamp() << std::endl;
         }
         else {
             std::cout << call->request.timestamp() << " has failed. Status: " << call->status.error_message() << std::endl;

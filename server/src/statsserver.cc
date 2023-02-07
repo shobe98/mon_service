@@ -34,11 +34,13 @@ void StatsServer::Run(string server_address)
     server_ = builder.BuildAndStart();
     std::cout << "Server listening on " << server_address << std::endl;
 
+    std::thread thread_(&StatsServer::HandleRpcs, this);
     // Proceed to the server's main loop.
     HandleRpcs();
+    thread_.join();
 }
 
-StatsServer::CallData::CallData(RuntimeStats::AsyncService *service, ServerCompletionQueue *cq)
+StatsServer::CallData::CallData(RuntimeStats::AsyncService *service, std::shared_ptr<ServerCompletionQueue> cq)
     : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE)
 {
     // Invoke the serving logic right away.
@@ -47,31 +49,33 @@ StatsServer::CallData::CallData(RuntimeStats::AsyncService *service, ServerCompl
 
 void StatsServer::CallData::Proceed()
 {
-    std::cout << "CallData " << this << " Proceed: ";
     if (status_ == CREATE)
-    {
-        std::cout << "CREATE";
-    
+    {    
         // Make this instance progress to the PROCESS state.
         status_ = PROCESS;
-        service_->RequestGetStats(&ctx_, &request_, &responder_, cq_, cq_, this);
+        service_->RequestGetStats(&ctx_, &request_, &responder_, cq_.get(), cq_.get(), this);
     }
     else if (status_ == PROCESS)
     {
-        std::cout << "PROCESS";
-    
+        
+    std::cout << "CallData " << this << " running; " << "Request received at: " << std::time(nullptr) << std::endl; // << "; Queue size: " << ;
+        
         new CallData(service_, cq_);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(std::rand() % 5000));
+
 
         response_.set_timestamp(static_cast<long>(std::time(nullptr)));
         response_.set_time_online(std::rand());
         response_.set_mem_usage(std::rand());
 
         status_ = FINISH;
+
+
         responder_.Finish(response_, Status::OK, this);
     }
     else
     {
-        std::cout << "FINISH"; 
         GPR_ASSERT(status_ == FINISH);
         delete this;
     }
@@ -81,12 +85,11 @@ void StatsServer::CallData::Proceed()
 // This can be run in multiple threads if needed.
 void StatsServer::HandleRpcs()
 {
-    new StatsServer::CallData(&service_, cq_.get());
+    new StatsServer::CallData(&service_, cq_);
     void *tag; 
     bool ok;
     while (true)
     {
-        std::cout << " Mainloop iteration" << std::endl;
         GPR_ASSERT(cq_->Next(&tag, &ok));
         GPR_ASSERT(ok);
         static_cast<CallData *>(tag)->Proceed();

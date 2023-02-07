@@ -30,12 +30,12 @@ class StatsServer {
  private:
   class CallData {
    public:
-    CallData(RuntimeStats::AsyncService*, ServerCompletionQueue*);
+    CallData(RuntimeStats::AsyncService*, std::shared_ptr<ServerCompletionQueue>);
     void Proceed();
 
    private:
     RuntimeStats::AsyncService* service_;
-    ServerCompletionQueue* cq_;
+    std::shared_ptr<ServerCompletionQueue> cq_;
     ServerContext ctx_;
 
     StatsRequest request_;
@@ -48,7 +48,7 @@ class StatsServer {
   void HandleRpcs();
 
   
-  std::unique_ptr<ServerCompletionQueue> cq_;
+  std::shared_ptr<ServerCompletionQueue> cq_;
   RuntimeStats::AsyncService service_;
   std::unique_ptr<Server> server_;
   std::string server_address;
