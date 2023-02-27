@@ -21,6 +21,9 @@ StatsClient::StatsClient(std::shared_ptr<grpc::Channel> channel) : stub_(Runtime
 void StatsClient::GetStats() {
     
     AsyncClientCall* call = new AsyncClientCall;
+
+    call->context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(10));
+
     call->request.set_timestamp(static_cast<long>(std::time(nullptr)));
 
 

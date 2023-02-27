@@ -25,13 +25,15 @@ using messages::StatsResponse;
 class StatsServer {
  public:
   ~StatsServer();
-  void Run(std::string server_address = "0.0.0.0:50051");
+  void Run(std::string server_address = "0.0.0.0:50051", int numThreads = 3);
 
  private:
   class CallData {
    public:
     CallData(RuntimeStats::AsyncService*, std::shared_ptr<ServerCompletionQueue>);
     void Proceed();
+
+    void Respawn();
 
    private:
     RuntimeStats::AsyncService* service_;
@@ -52,6 +54,8 @@ class StatsServer {
   RuntimeStats::AsyncService service_;
   std::unique_ptr<Server> server_;
   std::string server_address;
+
+  static const int kPollingIntervalSeconds = 2;
 
 };
 

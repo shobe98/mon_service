@@ -17,7 +17,7 @@ StatsServer::~StatsServer()
     cq_->Shutdown();
 }
 
-void StatsServer::Run(string server_address)
+void StatsServer::Run(string server_address, int numThreads)
 {
     this->server_address = server_address;
 
@@ -34,10 +34,14 @@ void StatsServer::Run(string server_address)
     server_ = builder.BuildAndStart();
     std::cout << "Server listening on " << server_address << std::endl;
 
-    std::thread thread_(&StatsServer::HandleRpcs, this);
-    // Proceed to the server's main loop.
-    HandleRpcs();
-    thread_.join();
+    std::vector<std::thread> threads;
+    for(int i = 0; i < numThreads; ++i) {
+        threads.push_back(std::thread(&StatsServer::HandleRpcs, this));
+    }
+
+    for(auto &thread_ : threads) {
+        thread_.join();
+    }
 }
 
 StatsServer::CallData::CallData(RuntimeStats::AsyncService *service, std::shared_ptr<ServerCompletionQueue> cq)
@@ -46,6 +50,15 @@ StatsServer::CallData::CallData(RuntimeStats::AsyncService *service, std::shared
     // Invoke the serving logic right away.
     Proceed();
 }
+
+void StatsServer::CallData::Respawn() {
+    new CallData(service_, cq_);
+
+    std::cout  << "CallData " << this << "Respwaned; Request issued at: " << request_.timestamp() << "; terminated at " << std::time(nullptr) << "; Delta: " << std::time(nullptr) - request_.timestamp() << std::endl;
+
+    delete this;
+}
+
 
 void StatsServer::CallData::Proceed()
 {
@@ -57,22 +70,28 @@ void StatsServer::CallData::Proceed()
     }
     else if (status_ == PROCESS)
     {
-        
-    std::cout << "CallData " << this << " running; " << "Request received at: " << std::time(nullptr) << std::endl; // << "; Queue size: " << ;
-        
         new CallData(service_, cq_);
+        if(request_.timestamp() + kPollingIntervalSeconds< std::time(nullptr)) {
+            status_ = FINISH;
+            std::cout << "Request " << request_.timestamp() << " cancelled at: " << std::time(nullptr) << "; Delta: " << std::time(nullptr) - request_.timestamp() << std::endl;
+            responder_.Finish(response_, Status::CANCELLED, this);
+        }
+        else {
+            //std::cout << "CallData " << this << " running; " 
+            std::cout << "Request " << request_.timestamp() << " received at: " << std::time(nullptr) << "; Delta: " << std::time(nullptr) - request_.timestamp() << std::endl;
+            
+            std::this_thread::sleep_for(std::chrono::milliseconds(std::rand() % 5000));
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(std::rand() % 5000));
+
+            response_.set_timestamp(static_cast<long>(std::time(nullptr)));
+            response_.set_time_online(std::rand());
+            response_.set_mem_usage(std::rand());
+
+            status_ = FINISH;
 
 
-        response_.set_timestamp(static_cast<long>(std::time(nullptr)));
-        response_.set_time_online(std::rand());
-        response_.set_mem_usage(std::rand());
-
-        status_ = FINISH;
-
-
-        responder_.Finish(response_, Status::OK, this);
+            responder_.Finish(response_, Status::OK, this);
+        }
     }
     else
     {
@@ -80,6 +99,7 @@ void StatsServer::CallData::Proceed()
         delete this;
     }
 }
+
 
 
 // This can be run in multiple threads if needed.
@@ -91,7 +111,11 @@ void StatsServer::HandleRpcs()
     while (true)
     {
         GPR_ASSERT(cq_->Next(&tag, &ok));
-        GPR_ASSERT(ok);
-        static_cast<CallData *>(tag)->Proceed();
+        if(ok) { 
+            static_cast<CallData *>(tag)->Proceed();
+        }
+        else {
+            static_cast<CallData *>(tag)->Respawn();
+        }
     }
 }
